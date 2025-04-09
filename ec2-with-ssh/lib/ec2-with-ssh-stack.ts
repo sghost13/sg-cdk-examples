@@ -16,8 +16,8 @@ import {
 } from 'aws-cdk-lib/aws-ec2';
 import { ManagedPolicy, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import * as fs from 'fs';
-import * as path from 'path';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 export class Ec2WithSSHStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -67,7 +67,7 @@ export class Ec2WithSSHStack extends Stack {
 
     // Add user data directly from file
     const userData = UserData.custom(
-      fs.readFileSync(path.join(__dirname, '../userData/user-data.yml'), 'utf8')
+      readFileSync(join(__dirname, '../userData/user-data.yml'), 'utf8')
     );
 
     // This is not my real key. This is just an example key.
