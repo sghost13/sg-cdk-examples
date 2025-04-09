@@ -19,63 +19,20 @@ import { Construct } from 'constructs';
 import * as fs from 'fs';
 import * as path from 'path';
 
-/**
- * Stack that creates an EC2 instance with SSH access from a specified IP.
- */
 export class Ec2WithSSHStack extends Stack {
-  // Make resources available to subclasses or for testing
-  public readonly vpc: Vpc;
-  public readonly securityGroup: SecurityGroup;
-  public readonly instance: Instance;
-  public readonly role: Role;
-
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    // Validate inputs
-    const myIPv4 = this.validateInputs();
-
-    // Create networking resources
-    this.vpc = this.createVpc();
-    this.securityGroup = this.createSecurityGroup(this.vpc, myIPv4);
-
-    // Create IAM resources
-    this.role = this.createInstanceRole();
-
-    // Define the instance
-    const keyPair = this.createKeyPair();
-    const userData = this.loadUserData();
-    this.instance = this.createEc2Instance(
-      this.vpc,
-      this.securityGroup,
-      this.role,
-      keyPair,
-      userData
-    );
-
-    // Define outputs
-    this.createOutputs(this.instance);
-  }
-
-  /**
-   * Validates required input parameters.
-   * @returns The validated IP address
-   */
-  private validateInputs(): string {
-    const myIPv4 = this.node.tryGetContext('myIp');
-    if (!myIPv4) {
+    // Get IP address from context (in this case package.json scripts)
+    const myIPV4 = this.node.tryGetContext('IPV4');
+    if (!myIPV4) {
       throw new Error(
-        'IP address must be provided via context. Use: cdk deploy -c myIp=your.ip.address/32'
+        'IP address must be provided via context. Use: npm run deploy/destroy'
       );
     }
-    return myIPv4;
-  }
 
-  /**
-   * Creates a VPC with a single public subnet.
-   */
-  private createVpc(): Vpc {
-    return new Vpc(this, 'Vpc', {
+    // Create VPC
+    const vpc = new Vpc(this, 'ec2WithSSH-Vpc', {
       maxAzs: 1,
       subnetConfiguration: [
         {
@@ -85,71 +42,44 @@ export class Ec2WithSSHStack extends Stack {
         },
       ],
     });
-  }
 
-  /**
-   * Creates a security group allowing SSH access from a specific IP.
-   */
-  private createSecurityGroup(vpc: Vpc, sourceIp: string): SecurityGroup {
-    const securityGroup = new SecurityGroup(this, 'SecurityGroup', {
+    // Create security group
+    const securityGroup = new SecurityGroup(this, 'ec2WithSSH-SecurityGroup', {
       vpc,
       description: 'Allow SSH access to EC2 instance',
       allowAllOutbound: true,
     });
 
+    // Add SSH ingress rule
     securityGroup.addIngressRule(
-      Peer.ipv4(sourceIp),
+      Peer.ipv4(myIPV4),
       Port.tcp(22),
       'Allow SSH access from specified IP'
     );
 
-    return securityGroup;
-  }
-
-  /**
-   * Creates an IAM role for the EC2 instance with SSM access.
-   */
-  private createInstanceRole(): Role {
-    return new Role(this, 'Role', {
+    // Create role for EC2 instance
+    const role = new Role(this, 'Role', {
       assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
       managedPolicies: [
         ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
       ],
     });
-  }
 
-  /**
-   * Creates a key pair with the specified public key material.
-   */
-  private createKeyPair(): KeyPair {
-    const publicSSHKey =
-      'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMw8LUO9n7J7YuligJXAGviDKzpVFmuxgp5ma0ryzVHd sghost13_aws_mac_ed25519';
-
-    return new KeyPair(this, 'ec2WithSSH-KeyPair', {
-      publicKeyMaterial: publicSSHKey,
-    });
-  }
-
-  /**
-   * Loads user data from a file.
-   */
-  private loadUserData(): UserData {
-    return UserData.custom(
+    // Add user data directly from file
+    const userData = UserData.custom(
       fs.readFileSync(path.join(__dirname, '../userData/user-data.yml'), 'utf8')
     );
-  }
 
-  /**
-   * Creates an EC2 instance with the specified configuration.
-   */
-  private createEc2Instance(
-    vpc: Vpc,
-    securityGroup: SecurityGroup,
-    role: Role,
-    keyPair: KeyPair,
-    userData: UserData
-  ): Instance {
-    return new Instance(this, 'Instance', {
+    // This is not my real key. This is just an example key.
+    // You should not add a real key to github, even though it is just the public key.
+    // In a real environment, use SSM or secret store, or even github secrets.
+    const keyPair = new KeyPair(this, 'ec2WithSSH-KeyPair', {
+      publicKeyMaterial:
+        'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMw8LUO9n7J7YuligJXAGviDKzpVFmuxgp5ma0ryzVHd sghost13_aws_mac_ed25519',
+    });
+
+    // Create EC2 instance
+    const ec2Instance = new Instance(this, 'ec2WithSSH-ec2Instance', {
       vpc,
       vpcSubnets: {
         subnetType: SubnetType.PUBLIC,
@@ -166,24 +96,20 @@ export class Ec2WithSSHStack extends Stack {
           volume: BlockDeviceVolume.ebs(125),
         },
       ],
+      keyPair,
       securityGroup,
       role,
-      keyPair,
       userData,
     });
-  }
 
-  /**
-   * Creates CloudFormation outputs for the EC2 instance.
-   */
-  private createOutputs(instance: Instance): void {
+    // Create outputs
     new CfnOutput(this, 'ec2WithSSH-InstanceId', {
-      value: instance.instanceId,
+      value: ec2Instance.instanceId,
       description: 'The ID of the EC2 instance',
     });
 
     new CfnOutput(this, 'ec2WithSSH-InstancePublicIp', {
-      value: instance.instancePublicIp,
+      value: ec2Instance.instancePublicIp,
       description: 'The public IP address of the EC2 instance',
     });
   }

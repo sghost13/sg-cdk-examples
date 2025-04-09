@@ -9,8 +9,8 @@
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "deploy": "MY_IP=$(curl -s https://api.ipify.org); cdk deploy -c myIp=${MY_IP}/32",
-    "destroy": "MY_IP=$(curl -s https://api.ipify.org); cdk destroy -c myIp=${MY_IP}/32"
+    "deploy": "MY_IPV4=$(curl -s https://api.ipify.org) && cdk deploy -c IPV4=$MY_IPV4/32",
+    "destroy": "MY_IPV4=$(curl -s https://api.ipify.org) && cdk destroy -c IPV4=$MY_IPV4/32"
   },
   "devDependencies": {
     "@types/node": "22.7.9",
