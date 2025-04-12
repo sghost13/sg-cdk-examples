@@ -70,13 +70,12 @@ export class Ec2WithSSHStack extends Stack {
       readFileSync(join(__dirname, '../userData/user-data.yml'), 'utf8')
     );
 
-    // This is not my real key. This is just an example key.
-    // You should not add a real key to github, even though it is just the public key.
-    // In a real environment, use SSM or secret store, or even github secrets.
-    const keyPair = new KeyPair(this, 'ec2WithSSH-KeyPair', {
-      publicKeyMaterial:
-        'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMw8LUO9n7J7YuligJXAGviDKzpVFmuxgp5ma0ryzVHd sghost13_aws_mac_ed25519',
-    });
+    // Add your key name in place of 'example-key'
+    const keyPair = KeyPair.fromKeyPairName(
+      this,
+      'ec2WithSSH-KeyPair',
+      'example-key' // Add your own key name here
+    );
 
     // Create EC2 instance
     const ec2Instance = new Instance(this, 'ec2WithSSH-ec2Instance', {
@@ -84,7 +83,11 @@ export class Ec2WithSSHStack extends Stack {
       vpcSubnets: {
         subnetType: SubnetType.PUBLIC,
       },
-      instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.XLARGE),
+      // T3.XLARGE = vCPU: 4, MEM: 16Gib
+      // T3.LARGE = vCPU: 2, MEM: 8Gib
+      // T3.MEDIUM = vCPU: 2, MEM: 4Gib
+      // T3.SMALL = vCPU: 2, MEM: 2Gib
+      instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.LARGE),
       // Use Ubuntu 22.04 LTS (Jammy Jellyfish) with region mapping
       machineImage: MachineImage.lookup({
         name: 'ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*',
