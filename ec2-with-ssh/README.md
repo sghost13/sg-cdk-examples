@@ -11,21 +11,62 @@ This project provides a quick way to deploy a disposable Ubuntu Linux server on 
 - Pre-configured key pair for immediate SSH access
 - Easy deployment and cleanup
 
-## Getting Started
+## Deployment
 
-Deploy the server using the included script (automatically detects your IP):
+Deploy the server using the included scripts that automatically detect your IP. It will throw errors if you don't:
 
 ```bash
 npm run deploy
 ```
 
-When finished, clean up all resources:
-
 ```bash
 npm run destroy
 ```
 
+The Deploy/Destroy uses ipify api to get your current ip. Only your current IP will get whitelisted access to the ec2 instance.
+
+```bash
+MY_IPV4=$(curl -s https://api.ipify.org) && cdk deploy -c IPV4="${MY_IPV4}/32"
+```
+
 ## Configuration
+
+### SSH
+
+Create an ssh key, if you don't already have one.
+
+```bash
+ssh-keygen -t ed25519 -C "aws-example-key"
+```
+
+#### Upload the key to AWS
+
+##### **For macOS:**
+
+```bash
+KEY_NAME="example-key"
+KEY_PATH="/${HOME}/path/to/key.pub"
+
+aws ec2 import-key-pair \
+  --key-name "${KEYNAME}" \
+  --public-key-material "$(base64 -i "${KEY_PATH}")"
+```
+
+##### **For Linux:**
+
+```bash
+KEY_NAME="example-key"
+KEY_PATH="/${HOME}/path/to/key.pub"
+
+aws ec2 import-key-pair \
+  --key-name sghost13_mac_aws_ed25519 \
+  --public-key-material "$(base64 -w 0 $KEY_PATH)"
+
+```
+
+#### Add key to ec2-with-ssh-stack.ts
+
+Add your `$KEY_NAME` from above to the keyPair from `ec2-with-ssh-stack.ts`
 
 ### Instance Type
 
@@ -34,10 +75,6 @@ The default instance type is `t3.xlarge`. To change it, modify the `createEc2Ins
 ### Storage
 
 The default EBS volume size is 125GB. Adjust this in the `blockDevices` configuration within the `createEc2Instance` method.
-
-### SSH Key
-
-The deployment uses a predefined public key. Replace it with your own by modifying the `createKeyPair` method.
 
 ### User Data
 
